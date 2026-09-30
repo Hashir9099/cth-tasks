@@ -8,6 +8,11 @@ function toLocalInputValue(date) {
 
 export default function DirectorDashboard({ user }) {
   const [allStaff, setAllStaff] = useState([])
+  const [unassignedUsers, setUnassignedUsers] = useState([])
+  const [roleDrafts, setRoleDrafts] = useState({})
+  const [leadDrafts, setLeadDrafts] = useState({})
+  const [assigningId, setAssigningId] = useState(null)
+
   const [tasks, setTasks] = useState([])
   const [title, setTitle] = useState('')
   const [assignedTo, setAssignedTo] = useState('')
@@ -27,6 +32,7 @@ export default function DirectorDashboard({ user }) {
 
   useEffect(() => {
     loadStaff()
+    loadUnassignedUsers()
     loadTasks()
     loadIncomingQueries()
   }, [])
@@ -37,6 +43,15 @@ export default function DirectorDashboard({ user }) {
       .select('*')
       .neq('role', 'director')
     setAllStaff(data || [])
+  }
+
+  const loadUnassignedUsers = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'team_member')
+      .is('team_lead_id', null)
+    setUnassignedUsers(data || [])
   }
 
   const loadTasks = async () => {
@@ -54,6 +69,33 @@ export default function DirectorDashboard({ user }) {
       .eq('raised_to', user.id)
       .order('created_at', { ascending: false })
     setIncomingQueries(data || [])
+  }
+
+  const confirmAssignment = async (person) => {
+    const newRole = roleDrafts[person.id] || 'team_member'
+    const newLead = newRole === 'team_member' ? leadDrafts[person.id] || null : null
+
+    if (newRole === 'team_member' && !newLead) {
+      alert('Please select a team lead for this team member.')
+      return
+    }
+
+    setAssigningId(person.id)
+    await supabase
+      .from('profiles')
+      .update({ role: newRole, team_lead_id: newLead })
+      .eq('id', person.id)
+
+    await loadUnassignedUsers()
+    await loadStaff()
+    setAssigningId(null)
+  }
+
+  const rejectSignup = async (personId) => {
+    setAssigningId(personId)
+    await supabase.from('profiles').delete().eq('id', personId)
+    await loadUnassignedUsers()
+    setAssigningId(null)
   }
 
   const handleAssign = async (e) => {
@@ -136,13 +178,78 @@ export default function DirectorDashboard({ user }) {
     return role
   }
 
-  // Director only approves extensions/remarks for tasks they personally assigned.
-  // Tasks a team lead gave to their own members are approved by that team lead instead.
+  const teamLeads = allStaff.filter((s) => s.role === 'team_lead')
   const myAssignedTasks = tasks.filter((t) => t.assigned_by === user.id)
   const otherTasks = tasks.filter((t) => t.assigned_by !== user.id)
 
   return (
     <div className="page">
+      {unassignedUsers.length > 0 && (
+        <div className="section">
+          <p className="section-title">Unassigned Users ({unassignedUsers.length})</p>
+          {unassignedUsers.map((person) => (
+            <div className="card" key={person.id}>
+              <p className="card-title">{person.full_name}</p>
+              <p className="card-meta" style={{ marginBottom: 10 }}>
+                Signed up, awaiting role assignment
+              </p>
+              <div className="field-row">
+                <div className="field-group">
+                  <label className="field-label">Assign role</label>
+                  <select
+                    value={roleDrafts[person.id] || 'team_member'}
+                    onChange={(e) =>
+                      setRoleDrafts((prev) => ({ ...prev, [person.id]: e.target.value }))
+                    }
+                  >
+                    <option value="team_member">Team Member</option>
+                    <option value="team_lead">Team Lead</option>
+                  </select>
+                </div>
+
+                {(roleDrafts[person.id] || 'team_member') === 'team_member' && (
+                  <div className="field-group">
+                    <label className="field-label">Reports to</label>
+                    <select
+                      value={leadDrafts[person.id] || ''}
+                      onChange={(e) =>
+                        setLeadDrafts((prev) => ({ ...prev, [person.id]: e.target.value }))
+                      }
+                    >
+                      <option value="">Select team lead...</option>
+                      {teamLeads.map((lead) => (
+                        <option key={lead.id} value={lead.id}>
+                          {lead.full_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => confirmAssignment(person)}
+                  className="btn-primary"
+                  disabled={assigningId === person.id}
+                >
+                  {assigningId === person.id ? 'Assigning...' : 'Confirm'}
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm(`Reject and remove ${person.full_name}'s account?`)) {
+                      rejectSignup(person.id)
+                    }
+                  }}
+                  className="btn-danger"
+                  disabled={assigningId === person.id}
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="form-card">
         <p className="section-title">Assign a Task</p>
         <form onSubmit={handleAssign}>

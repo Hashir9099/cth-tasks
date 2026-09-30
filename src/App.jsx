@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import Login from './components/Login'
+import Signup from './components/Signup'
 import DirectorDashboard from './components/DirectorDashboard'
 import TeamLeadView from './components/TeamLeadView'
 import TeamMemberView from './components/TeamMemberView'
@@ -9,6 +10,7 @@ function App() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showSignup, setShowSignup] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -47,7 +49,13 @@ function App() {
 
   if (loading) return <p style={{ padding: 24, color: 'var(--text-dim)' }}>Loading...</p>
 
-  if (!user) return <Login onLogin={handleLogin} />
+  if (!user) {
+    return showSignup ? (
+      <Signup onSignedUp={handleLogin} onBackToLogin={() => setShowSignup(false)} />
+    ) : (
+      <Login onLogin={handleLogin} onShowSignup={() => setShowSignup(true)} />
+    )
+  }
 
   return (
     <div className="app-shell">
