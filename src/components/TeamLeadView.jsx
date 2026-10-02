@@ -38,6 +38,29 @@ export default function TeamLeadView({ user, profile }) {
     loadIncomingQueries()
     loadMyQueries()
     loadDirector()
+
+    const channel = supabase
+      .channel('team-lead-updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks' },
+        () => loadTasks()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'queries', filter: `raised_to=eq.${user.id}` },
+        () => loadIncomingQueries()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'queries', filter: `raised_by=eq.${user.id}` },
+        () => loadMyQueries()
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   const loadTeamMembers = async () => {

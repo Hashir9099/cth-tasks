@@ -17,6 +17,24 @@ export default function TeamMemberView({ user, profile }) {
   useEffect(() => {
     loadTasks()
     loadQueries()
+
+    const channel = supabase
+      .channel('team-member-updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks', filter: `assigned_to=eq.${user.id}` },
+        () => loadTasks()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'queries', filter: `raised_by=eq.${user.id}` },
+        () => loadQueries()
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   const loadTasks = async () => {
@@ -187,9 +205,6 @@ export default function TeamMemberView({ user, profile }) {
                       {savingId === `extend-${task.id}` ? 'Sending...' : 'Request Extension'}
                     </button>
                   </div>
-                )}
-                {canRequestExtension(task) && (
-                  <p className="hint-text">Max allowed: {extendCap(task).toLocaleString()} — subject to approval</p>
                 )}
 
                 <div className="field-row">

@@ -35,6 +35,32 @@ export default function DirectorDashboard({ user }) {
     loadUnassignedUsers()
     loadTasks()
     loadIncomingQueries()
+
+    const channel = supabase
+      .channel('director-updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks' },
+        () => loadTasks()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'queries', filter: `raised_to=eq.${user.id}` },
+        () => loadIncomingQueries()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        () => {
+          loadStaff()
+          loadUnassignedUsers()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   const loadStaff = async () => {
