@@ -154,27 +154,33 @@ export default function DirectorDashboard({ user }) {
   const rejectSignup = async (personId) => {
     setAssigningId(personId)
   
-    const { data: { session } } = await supabase.auth.getSession()
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
   
-    const response = await fetch(
-      'https://afasmxawtticduvdmgvi.supabase.co/functions/v1/reject-signup',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ personId }),
+      const response = await fetch(
+        'https://afasmxawtticduvdmgvi.supabase.co/functions/v1/reject-signup',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ personId }),
+        }
+      )
+  
+      const result = await response.json()
+      if (!response.ok) {
+        alert(result.error || 'Failed to reject signup')
       }
-    )
   
-    const result = await response.json()
-    if (!response.ok) {
-      alert(result.error || 'Failed to reject signup')
+      await loadUnassignedUsers()
+    } catch (err) {
+      console.error('Reject signup failed:', err)
+      alert('Something went wrong rejecting this signup. Check the console.')
+    } finally {
+      setAssigningId(null)
     }
-  
-    await loadUnassignedUsers()
-    setAssigningId(null)
   }
 
   const handleAssign = async (e) => {
