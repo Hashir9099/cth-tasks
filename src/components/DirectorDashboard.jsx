@@ -12,19 +12,25 @@ export default function DirectorDashboard({ user }) {
   const [roleDrafts, setRoleDrafts] = useState({})
   const [leadDrafts, setLeadDrafts] = useState({})
   const [assigningId, setAssigningId] = useState(null)
+  const [phoneDrafts, setPhoneDrafts] = useState({})
+  const [savingPhoneId, setSavingPhoneId] = useState(null)
 
   const [tasks, setTasks] = useState([])
   const [title, setTitle] = useState('')
   const [assignedTo, setAssignedTo] = useState('')
 
-  const now = new Date()
-  const defaultDue = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+  const [nowTick, setNowTick] = useState(new Date())
+  useEffect(() => {
+    const interval = setInterval(() => setNowTick(new Date()), 30000)
+    return () => clearInterval(interval)
+  }, [])
 
-  const [assignedDate, setAssignedDate] = useState(toLocalInputValue(now))
-  const [dueDate, setDueDate] = useState(toLocalInputValue(defaultDue))
+  const [assignedDate, setAssignedDate] = useState(toLocalInputValue(new Date()))
+  const [dueDate, setDueDate] = useState(toLocalInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)))
 
-  const minDue = toLocalInputValue(now)
-  const maxDue = toLocalInputValue(new Date(now.getTime() + 48 * 60 * 60 * 1000))
+  const minAssign = toLocalInputValue(nowTick)
+  const minDue = toLocalInputValue(nowTick)
+  const maxDue = toLocalInputValue(new Date(nowTick.getTime() + 48 * 60 * 60 * 1000))
 
   const [incomingQueries, setIncomingQueries] = useState([])
   const [responseText, setResponseText] = useState({})
@@ -97,6 +103,34 @@ export default function DirectorDashboard({ user }) {
     setIncomingQueries(data || [])
   }
 
+  const saveWhatsAppNumber = async (person) => {
+    const phone = (phoneDrafts[person.id] ?? person.whatsapp_phone ?? '').trim()
+
+    // Accept international format, e.g. +923001234567. Blank clears the number.
+    if (phone && !/^\+[1-9]\d{7,14}$/.test(phone)) {
+      alert('Enter the number in international format, e.g. +923001234567')
+      return
+    }
+
+    setSavingPhoneId(person.id)
+    const { error } = await supabase
+      .from('profiles')
+      .update({ whatsapp_phone: phone || null })
+      .eq('id', person.id)
+
+    if (error) {
+      alert('Could not save the WhatsApp number: ' + error.message)
+    } else {
+      setAllStaff((current) => current.map((staff) =>
+        staff.id === person.id ? { ...staff, whatsapp_phone: phone || null } : staff
+      ))
+      setPhoneDrafts((current) => ({ ...current, [person.id]: phone }))
+      alert('WhatsApp number saved.')
+    }
+
+    setSavingPhoneId(null)
+  }
+
   const confirmAssignment = async (person) => {
     const newRole = roleDrafts[person.id] || 'team_member'
     const newLead = newRole === 'team_member' ? leadDrafts[person.id] || null : null
@@ -119,7 +153,26 @@ export default function DirectorDashboard({ user }) {
 
   const rejectSignup = async (personId) => {
     setAssigningId(personId)
-    await supabase.from('profiles').delete().eq('id', personId)
+  
+    const { data: { session } } = await supabase.auth.getSession()
+  
+    const response = await fetch(
+      'https://afasmxawtticduvdmgvi.supabase.co/functions/v1/reject-signup',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ personId }),
+      }
+    )
+  
+    const result = await response.json()
+    if (!response.ok) {
+      alert(result.error || 'Failed to reject signup')
+    }
+  
     await loadUnassignedUsers()
     setAssigningId(null)
   }
@@ -128,13 +181,23 @@ export default function DirectorDashboard({ user }) {
     e.preventDefault()
     if (!title || !assignedTo) return
 
+    const realNow = new Date()
+    let finalAssignedDate = new Date(assignedDate)
+    let finalDueDate = new Date(dueDate)
+
+    // Guard against stale values if the tab was open a while before submitting
+    if (finalAssignedDate < realNow) finalAssignedDate = realNow
+    if (finalDueDate < realNow) {
+      finalDueDate = new Date(realNow.getTime() + 24 * 60 * 60 * 1000)
+    }
+
     await supabase.from('tasks').insert({
       title,
       assigned_to: assignedTo,
       assigned_by: user.id,
-      assigned_date: new Date(assignedDate).toISOString(),
-      due_datetime: new Date(dueDate).toISOString(),
-      original_due_datetime: new Date(dueDate).toISOString(),
+      assigned_date: finalAssignedDate.toISOString(),
+      due_datetime: finalDueDate.toISOString(),
+      original_due_datetime: finalDueDate.toISOString(),
       status: 'pending',
     })
 
@@ -230,6 +293,7 @@ export default function DirectorDashboard({ user }) {
                   >
                     <option value="team_member">Team Member</option>
                     <option value="team_lead">Team Lead</option>
+                    <option value="director">Director</option>
                   </select>
                 </div>
 
@@ -276,6 +340,52 @@ export default function DirectorDashboard({ user }) {
         </div>
       )}
 
+      <div className="section">
+        <p className="section-title">Employee WhatsApp Numbers</p>
+        <p className="card-meta" style={{ marginBottom: 12 }}>
+          Enter each employee's WhatsApp number in international format, including the + country code.
+          For example, a Pakistan number may look like +923001234567.
+        </p>
+        {allStaff.length === 0 ? (
+          <p className="empty-state">No employees to manage yet.</p>
+        ) : (
+          allStaff.map((person) => (
+            <div className="card" key={`whatsapp-${person.id}`}>
+              <p className="card-title">{person.full_name || 'Unnamed employee'}</p>
+              <p className="card-meta" style={{ marginBottom: 10 }}>
+                {roleLabel(person.role)}
+              </p>
+              <div className="field-row">
+                <div className="field-group" style={{ flex: 1, minWidth: 220 }}>
+                  <label className="field-label" htmlFor={`whatsapp-${person.id}`}>
+                    WhatsApp number
+                  </label>
+                  <input
+                    id={`whatsapp-${person.id}`}
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="+923001234567"
+                    value={phoneDrafts[person.id] ?? person.whatsapp_phone ?? ''}
+                    onChange={(e) =>
+                      setPhoneDrafts((current) => ({ ...current, [person.id]: e.target.value }))
+                    }
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => saveWhatsAppNumber(person)}
+                  disabled={savingPhoneId === person.id}
+                >
+                  {savingPhoneId === person.id ? 'Saving...' : 'Save Number'}
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       <div className="form-card">
         <p className="section-title">Assign a Task</p>
         <form onSubmit={handleAssign}>
@@ -308,7 +418,7 @@ export default function DirectorDashboard({ user }) {
               <input
                 type="datetime-local"
                 value={assignedDate}
-                min={toLocalInputValue(now)}
+                min={minAssign}
                 onChange={(e) => setAssignedDate(e.target.value)}
               />
             </div>
