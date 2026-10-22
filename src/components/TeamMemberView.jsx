@@ -1,3 +1,4 @@
+import { notifyTaskEvent } from '../lib/notifyTask'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
@@ -61,6 +62,7 @@ export default function TeamMemberView({ user, profile }) {
       .from('tasks')
       .update({ status: 'done', completed_at: new Date().toISOString() })
       .eq('id', taskId)
+      notifyTaskEvent(taskId, 'task_completed')
     await loadTasks()
     setSavingId(null)
   }
@@ -71,7 +73,7 @@ export default function TeamMemberView({ user, profile }) {
   }
 
   const canRequestExtension = (task) => {
-    if (task.requested_due_datetime) return false
+    if (task.requested_due_datetime) return falseD
     const currentDue = new Date(task.due_datetime)
     return currentDue < extendCap(task)
   }
@@ -95,6 +97,8 @@ export default function TeamMemberView({ user, profile }) {
         remarks_reviewed: false,
       })
       .eq('id', task.id)
+
+      notifyTaskEvent(task.id, 'extension_requested')
 
     setExtendDrafts((prev) => ({ ...prev, [task.id]: '' }))
     await loadTasks()

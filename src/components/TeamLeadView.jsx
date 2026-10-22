@@ -1,3 +1,4 @@
+import { notifyTaskEvent } from '../lib/notifyTask'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
@@ -134,6 +135,7 @@ export default function TeamLeadView({ user, profile }) {
       .from('tasks')
       .update({ status: 'done', completed_at: new Date().toISOString() })
       .eq('id', taskId)
+      notifyTaskEvent(taskId, 'task_completed')
     await loadTasks()
     setSavingId(null)
   }
@@ -201,6 +203,7 @@ export default function TeamLeadView({ user, profile }) {
         remarks_reviewed: false,
       })
       .eq('id', task.id)
+      notifyTaskEvent(task.id, 'extension_requested')
 
     setExtendDrafts((prev) => ({ ...prev, [task.id]: '' }))
     await loadTasks()
@@ -235,6 +238,8 @@ export default function TeamLeadView({ user, profile }) {
         remarks_reviewed: true,
       })
       .eq('id', task.id)
+      notifyTaskEvent(task.id, 'extension_approved')
+      notifyTaskEvent(task.id, 'extension_approved')
     await loadTasks()
     setSavingId(null)
   }
@@ -248,6 +253,8 @@ export default function TeamLeadView({ user, profile }) {
         remarks_reviewed: true,
       })
       .eq('id', task.id)
+      notifyTaskEvent(task.id, 'extension_rejected')
+      notifyTaskEvent(task.id, 'extension_rejected')
     await loadTasks()
     setSavingId(null)
   }

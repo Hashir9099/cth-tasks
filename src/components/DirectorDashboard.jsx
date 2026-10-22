@@ -1,3 +1,4 @@
+import { notifyTaskEvent } from '../lib/notifyTask'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
