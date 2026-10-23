@@ -14,6 +14,7 @@ export default function TeamMemberView({ user, profile }) {
   const [remarkDrafts, setRemarkDrafts] = useState({})
   const [extendDrafts, setExtendDrafts] = useState({})
   const [savingId, setSavingId] = useState(null)
+  const [showCompleted, setShowCompleted] = useState(false)
 
   useEffect(() => {
     loadTasks()
@@ -140,12 +141,15 @@ export default function TeamMemberView({ user, profile }) {
     return role
   }
 
+  const activeTasks = tasks.filter((t) => t.status !== 'done')
+const completedTasks = tasks.filter((t) => t.status === 'done')
+
   return (
     <div className="page">
       <div className="section">
         <p className="section-title">My Tasks</p>
-        {tasks.length === 0 && <p className="empty-state">No tasks assigned yet.</p>}
-        {tasks.map((task) => (
+        {activeTasks.length === 0 && <p className="empty-state">No tasks assigned yet.</p>}
+        {activeTasks.map((task) => (
           <div className="card" key={task.id}>
             <p className="card-title">{task.title}</p>
             <p className="card-meta">
@@ -234,6 +238,39 @@ export default function TeamMemberView({ user, profile }) {
           </div>
         ))}
       </div>
+
+      <div className="section">
+  <p
+    className="section-title"
+    onClick={() => setShowCompleted((prev) => !prev)}
+    style={{ cursor: 'pointer' }}
+  >
+    Completed Tasks ({completedTasks.length}) {showCompleted ? '▲' : '▼'}
+  </p>
+  {showCompleted && (
+    <>
+      {completedTasks.length === 0 && (
+        <p className="empty-state">No completed tasks yet.</p>
+      )}
+      {completedTasks.map((task) => (
+        <div className="card" key={task.id}>
+          <p className="card-title">{task.title}</p>
+          <p className="card-meta">
+            Assigned by: <strong>{task.assigner?.full_name}</strong> ({roleLabel(task.assigner?.role)})
+          </p>
+          <p className="card-meta">
+            Completed: {task.completed_at ? new Date(task.completed_at).toLocaleString() : '-'}
+          </p>
+          {task.remarks && (
+            <div className="remark-box">
+              Your remark: {task.remarks}
+            </div>
+          )}
+        </div>
+      ))}
+    </>
+  )}
+</div>
 
       <div className="section">
         <p className="section-title">Ask My Team Lead</p>

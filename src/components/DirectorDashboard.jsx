@@ -36,6 +36,7 @@ export default function DirectorDashboard({ user }) {
   const [incomingQueries, setIncomingQueries] = useState([])
   const [responseText, setResponseText] = useState({})
   const [savingId, setSavingId] = useState(null)
+  const [showCompletedAssigned, setShowCompletedAssigned] = useState(false)
 
   useEffect(() => {
     loadStaff()
@@ -276,6 +277,8 @@ export default function DirectorDashboard({ user }) {
 
   const teamLeads = allStaff.filter((s) => s.role === 'team_lead')
   const myAssignedTasks = tasks.filter((t) => t.assigned_by === user.id)
+  const activeAssignedTasks = myAssignedTasks.filter((t) => t.status !== 'done')
+  const completedAssignedTasks = myAssignedTasks.filter((t) => t.status === 'done')
   const otherTasks = tasks.filter((t) => t.assigned_by !== user.id)
 
   return (
@@ -450,8 +453,8 @@ export default function DirectorDashboard({ user }) {
 
       <div className="section">
         <p className="section-title">Tasks I've Assigned</p>
-        {myAssignedTasks.length === 0 && <p className="empty-state">You haven't assigned any tasks yet.</p>}
-        {myAssignedTasks.map((task) => (
+        {activeAssignedTasks.length === 0 && <p className="empty-state">You haven't assigned any tasks yet.</p>}
+        {activeAssignedTasks.map((task) => (
           <div className="card" key={task.id}>
             <p className="card-title">{task.title}</p>
             <p className="card-meta">
@@ -510,6 +513,37 @@ export default function DirectorDashboard({ user }) {
         ))}
       </div>
 
+      <div className="section">
+  <p
+    className="section-title"
+    onClick={() => setShowCompletedAssigned((prev) => !prev)}
+    style={{ cursor: 'pointer' }}
+  >
+    Completed (Tasks I've Assigned) ({completedAssignedTasks.length}) {showCompletedAssigned ? '▲' : '▼'}
+  </p>
+  {showCompletedAssigned && (
+    <>
+      {completedAssignedTasks.length === 0 && (
+        <p className="empty-state">No completed tasks yet.</p>
+      )}
+      {completedAssignedTasks.map((task) => (
+        <div className="card" key={task.id}>
+          <p className="card-title">{task.title}</p>
+          <p className="card-meta">
+            Assigned to: <strong>{task.profiles?.full_name}</strong> ({roleLabel(task.profiles?.role)})
+          </p>
+          <p className="card-meta">
+            Completed: {task.completed_at ? new Date(task.completed_at).toLocaleString() : '-'}
+          </p>
+          {task.remarks && (
+            <div className="remark-box">{task.remarks}</div>
+          )}
+        </div>
+      ))}
+    </>
+  )}
+</div>
+      
       <div className="section">
         <p className="section-title">Company-wide Overview (Read-only)</p>
         {otherTasks.length === 0 && <p className="empty-state">No other tasks in the system yet.</p>}

@@ -32,6 +32,8 @@ export default function TeamLeadView({ user, profile }) {
   const [remarkDrafts, setRemarkDrafts] = useState({})
   const [extendDrafts, setExtendDrafts] = useState({})
   const [savingId, setSavingId] = useState(null)
+  const [showCompletedOwn, setShowCompletedOwn] = useState(false)
+  const [showCompletedTeam, setShowCompletedTeam] = useState(false)
 
   useEffect(() => {
     loadTeamMembers()
@@ -277,6 +279,10 @@ export default function TeamLeadView({ user, profile }) {
     teamMembers.some((m) => m.id === t.assigned_to)
   )
   const myOwnTasks = tasks.filter((t) => t.assigned_to === user.id)
+  const activeOwnTasks = myOwnTasks.filter((t) => t.status !== 'done')
+  const completedOwnTasks = myOwnTasks.filter((t) => t.status === 'done')
+  const activeTeamTasks = teamTasks.filter((t) => t.status !== 'done')
+  const completedTeamTasks = teamTasks.filter((t) => t.status === 'done')
 
   return (
     <div className="page">
@@ -337,8 +343,8 @@ export default function TeamLeadView({ user, profile }) {
 
       <div className="section">
         <p className="section-title">My Own Tasks</p>
-        {myOwnTasks.length === 0 && <p className="empty-state">No tasks assigned to you directly.</p>}
-        {myOwnTasks.map((task) => (
+        {activeOwnTasks.length === 0 && <p className="empty-state">No tasks assigned to you directly.</p>}
+        {activeOwnTasks.map((task) => (
           <div className="card" key={task.id}>
             <p className="card-title">{task.title}</p>
             <p className="card-meta">
@@ -427,9 +433,40 @@ export default function TeamLeadView({ user, profile }) {
       </div>
 
       <div className="section">
+  <p
+    className="section-title"
+    onClick={() => setShowCompletedOwn((prev) => !prev)}
+    style={{ cursor: 'pointer' }}
+  >
+    Completed (My Own Tasks) ({completedOwnTasks.length}) {showCompletedOwn ? '▲' : '▼'}
+  </p>
+  {showCompletedOwn && (
+    <>
+      {completedOwnTasks.length === 0 && (
+        <p className="empty-state">No completed tasks yet.</p>
+      )}
+      {completedOwnTasks.map((task) => (
+        <div className="card" key={task.id}>
+          <p className="card-title">{task.title}</p>
+          <p className="card-meta">
+            Assigned by: <strong>{task.assigner?.full_name}</strong> ({roleLabel(task.assigner?.role)})
+          </p>
+          <p className="card-meta">
+            Completed: {task.completed_at ? new Date(task.completed_at).toLocaleString() : '-'}
+          </p>
+          {task.remarks && (
+            <div className="remark-box">Your remark: {task.remarks}</div>
+          )}
+        </div>
+      ))}
+    </>
+  )}
+</div>
+      
+      <div className="section">
         <p className="section-title">My Team's Tasks</p>
-        {teamTasks.length === 0 && <p className="empty-state">No tasks assigned to your team yet.</p>}
-        {teamTasks.map((task) => (
+        {activeTeamTasks.length === 0 && <p className="empty-state">No tasks assigned to your team yet.</p>}
+        {activeTeamTasks.map((task) => (
           <div className="card" key={task.id}>
             <p className="card-title">{task.title}</p>
             <p className="card-meta">
@@ -490,6 +527,37 @@ export default function TeamLeadView({ user, profile }) {
         ))}
       </div>
 
+      <div className="section">
+  <p
+    className="section-title"
+    onClick={() => setShowCompletedTeam((prev) => !prev)}
+    style={{ cursor: 'pointer' }}
+  >
+    Completed (My Team's Tasks) ({completedTeamTasks.length}) {showCompletedTeam ? '▲' : '▼'}
+  </p>
+  {showCompletedTeam && (
+    <>
+      {completedTeamTasks.length === 0 && (
+        <p className="empty-state">No completed tasks yet.</p>
+      )}
+      {completedTeamTasks.map((task) => (
+        <div className="card" key={task.id}>
+          <p className="card-title">{task.title}</p>
+          <p className="card-meta">
+            Assigned to: <strong>{task.profiles?.full_name}</strong>
+          </p>
+          <p className="card-meta">
+            Completed: {task.completed_at ? new Date(task.completed_at).toLocaleString() : '-'}
+          </p>
+          {task.remarks && (
+            <div className="remark-box">{task.remarks}</div>
+          )}
+        </div>
+      ))}
+    </>
+  )}
+</div>
+      
       <div className="section">
         <p className="section-title">Questions From My Team</p>
         {incomingQueries.length === 0 && <p className="empty-state">No questions right now.</p>}
