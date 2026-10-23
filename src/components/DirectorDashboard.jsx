@@ -37,6 +37,7 @@ export default function DirectorDashboard({ user }) {
   const [responseText, setResponseText] = useState({})
   const [savingId, setSavingId] = useState(null)
   const [showCompletedAssigned, setShowCompletedAssigned] = useState(false)
+  const [showWhatsAppPanel, setShowWhatsAppPanel] = useState(false)
 
   useEffect(() => {
     loadStaff()
@@ -283,6 +284,14 @@ export default function DirectorDashboard({ user }) {
 
   return (
     <div className="page">
+      <button
+        type="button"
+        className="btn-secondary panel-trigger"
+        onClick={() => setShowWhatsAppPanel(true)}
+      >
+        📱 Manage WhatsApp Numbers
+      </button>
+
       {unassignedUsers.length > 0 && (
         <div className="section">
           <p className="section-title">Unassigned Users ({unassignedUsers.length})</p>
@@ -350,51 +359,61 @@ export default function DirectorDashboard({ user }) {
         </div>
       )}
 
-      <div className="section">
-        <p className="section-title">Employee WhatsApp Numbers</p>
-        <p className="card-meta" style={{ marginBottom: 12 }}>
-          Enter each employee's WhatsApp number in international format, including the + country code.
-          For example, a Pakistan number may look like +923001234567.
-        </p>
-        {allStaff.length === 0 ? (
-          <p className="empty-state">No employees to manage yet.</p>
-        ) : (
-          allStaff.map((person) => (
-            <div className="card" key={`whatsapp-${person.id}`}>
-              <p className="card-title">{person.full_name || 'Unnamed employee'}</p>
-              <p className="card-meta" style={{ marginBottom: 10 }}>
-                {roleLabel(person.role)}
-              </p>
-              <div className="field-row">
-                <div className="field-group" style={{ flex: 1, minWidth: 220 }}>
-                  <label className="field-label" htmlFor={`whatsapp-${person.id}`}>
-                    WhatsApp number
-                  </label>
-                  <input
-                    id={`whatsapp-${person.id}`}
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    placeholder="+923001234567"
-                    value={phoneDrafts[person.id] ?? person.whatsapp_phone ?? ''}
-                    onChange={(e) =>
-                      setPhoneDrafts((current) => ({ ...current, [person.id]: e.target.value }))
-                    }
-                  />
-                </div>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={() => saveWhatsAppNumber(person)}
-                  disabled={savingPhoneId === person.id}
-                >
-                  {savingPhoneId === person.id ? 'Saving...' : 'Save Number'}
-                </button>
-              </div>
+      {showWhatsAppPanel && (
+        <>
+          <div className="panel-overlay" onClick={() => setShowWhatsAppPanel(false)} />
+          <div className="panel-slideover">
+            <div className="panel-slideover-header">
+              <p className="section-title" style={{ margin: 0 }}>Employee WhatsApp Numbers</p>
+              <button type="button" className="btn-ghost" onClick={() => setShowWhatsAppPanel(false)}>
+                Close
+              </button>
             </div>
-          ))
-        )}
-      </div>
+            <p className="card-meta" style={{ marginBottom: 12 }}>
+              Enter each employee's WhatsApp number in international format, including the + country code.
+              For example, a Pakistan number may look like +923001234567.
+            </p>
+            {allStaff.length === 0 ? (
+              <p className="empty-state">No employees to manage yet.</p>
+            ) : (
+              allStaff.map((person) => (
+                <div className="card" key={`whatsapp-${person.id}`}>
+                  <p className="card-title">{person.full_name || 'Unnamed employee'}</p>
+                  <p className="card-meta" style={{ marginBottom: 10 }}>
+                    {roleLabel(person.role)}
+                  </p>
+                  <div className="field-row">
+                    <div className="field-group" style={{ flex: 1, minWidth: 220 }}>
+                      <label className="field-label" htmlFor={`whatsapp-${person.id}`}>
+                        WhatsApp number
+                      </label>
+                      <input
+                        id={`whatsapp-${person.id}`}
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        placeholder="+923001234567"
+                        value={phoneDrafts[person.id] ?? person.whatsapp_phone ?? ''}
+                        onChange={(e) =>
+                          setPhoneDrafts((current) => ({ ...current, [person.id]: e.target.value }))
+                        }
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => saveWhatsAppNumber(person)}
+                      disabled={savingPhoneId === person.id}
+                    >
+                      {savingPhoneId === person.id ? 'Saving...' : 'Save Number'}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
 
       <div className="form-card">
         <p className="section-title">Assign a Task</p>
@@ -514,36 +533,36 @@ export default function DirectorDashboard({ user }) {
       </div>
 
       <div className="section">
-  <p
-    className="section-title"
-    onClick={() => setShowCompletedAssigned((prev) => !prev)}
-    style={{ cursor: 'pointer' }}
-  >
-    Completed (Tasks I've Assigned) ({completedAssignedTasks.length}) {showCompletedAssigned ? '▲' : '▼'}
-  </p>
-  {showCompletedAssigned && (
-    <>
-      {completedAssignedTasks.length === 0 && (
-        <p className="empty-state">No completed tasks yet.</p>
-      )}
-      {completedAssignedTasks.map((task) => (
-        <div className="card" key={task.id}>
-          <p className="card-title">{task.title}</p>
-          <p className="card-meta">
-            Assigned to: <strong>{task.profiles?.full_name}</strong> ({roleLabel(task.profiles?.role)})
-          </p>
-          <p className="card-meta">
-            Completed: {task.completed_at ? new Date(task.completed_at).toLocaleString() : '-'}
-          </p>
-          {task.remarks && (
-            <div className="remark-box">{task.remarks}</div>
-          )}
-        </div>
-      ))}
-    </>
-  )}
-</div>
-      
+        <p
+          className="section-title"
+          onClick={() => setShowCompletedAssigned((prev) => !prev)}
+          style={{ cursor: 'pointer' }}
+        >
+          Completed (Tasks I've Assigned) ({completedAssignedTasks.length}) {showCompletedAssigned ? '▲' : '▼'}
+        </p>
+        {showCompletedAssigned && (
+          <>
+            {completedAssignedTasks.length === 0 && (
+              <p className="empty-state">No completed tasks yet.</p>
+            )}
+            {completedAssignedTasks.map((task) => (
+              <div className="card" key={task.id}>
+                <p className="card-title">{task.title}</p>
+                <p className="card-meta">
+                  Assigned to: <strong>{task.profiles?.full_name}</strong> ({roleLabel(task.profiles?.role)})
+                </p>
+                <p className="card-meta">
+                  Completed: {task.completed_at ? new Date(task.completed_at).toLocaleString() : '-'}
+                </p>
+                {task.remarks && (
+                  <div className="remark-box">{task.remarks}</div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
       <div className="section">
         <p className="section-title">Company-wide Overview (Read-only)</p>
         {otherTasks.length === 0 && <p className="empty-state">No other tasks in the system yet.</p>}
